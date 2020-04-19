@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -17,10 +17,11 @@
 # limitations under the License.
 #
 
-bin_path=$0
-exporter_dir=$(cd $(dirname $0); pwd)
+set -ex
 
-while [[ $# -gt 0 ]]; do
+exporter_dir=$(cd "$(dirname "$0")" || exit; pwd)
+
+while [ $# -gt 0 ]; do
   case "$1" in
     --taskid=*)
       task_id=${1#*=}
@@ -34,11 +35,11 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-[[ ! ${task_id} || ! ${trace_id} || ! ${export_path} ]] \
+[ ! "${task_id}" ] || [ ! "${trace_id}" ] || [ ! "${export_path}" ] \
   && echo 'Usage: sh tools/profile-exporter/profile_exporter.sh [--taskid] [--traceid] export_path' \
   && exit 1
 
-[[ ! -d ${export_path} ]] \
+[ ! -d "${export_path}" ] \
   && echo "Cannot find export export_path path: ${export_path}" \
   && exit 1
 
@@ -46,23 +47,23 @@ done
 oap_libs_dir="${exporter_dir}/../../oap-libs"
 exporter_log_file="${exporter_dir}/profile_exporter_log4j2.xml"
 tool_application_config="${exporter_dir}/application.yml"
-[[ ! -f ${tool_application_config} ]] \
+[ ! -f "${tool_application_config}" ] \
   && echo "Cannot find oap application.yml" \
   && exit 1
-[[ ! -d ${oap_libs_dir} ]] \
+[ ! -d "${oap_libs_dir}" ] \
   && echo "Cannot find oap libs path" \
   && exit 1
 
 # create current trace temporary path
 work_dir="${export_path}/${trace_id}"
-mkdir -p ${work_dir}
+mkdir -p "${work_dir}"
 
 # prepare exporter files
 mkdir -p "${work_dir}/config"
 mkdir -p "${work_dir}/work"
-cp ${exporter_log_file} ${work_dir}/config/log4j2.xml
+cp "${exporter_log_file}" "${work_dir}"/config/log4j2.xml
 # only persist core and storage module in application.yml config
-cp ${tool_application_config} ${work_dir}/config/application.yml
+cp "${tool_application_config}" "${work_dir}"/config/application.yml
 
 # start export
 echo "Exporting task: ${task_id}, trace: ${trace_id}, export_path: ${work_dir}"
@@ -76,11 +77,11 @@ do
     CLASSPATH="$i:$CLASSPATH"
 done
 
-exec $_RUNJAVA ${JAVA_OPTS} -classpath $CLASSPATH org.apache.skywalking.oap.server.tool.profile.exporter.ProfileSnapshotExporter \
-  ${task_id} ${trace_id} ${work_dir}/work &
+exec $_RUNJAVA "${JAVA_OPTS}" -classpath "$CLASSPATH" org.apache.skywalking.oap.server.tool.profile.exporter.ProfileSnapshotExporter \
+  "${task_id}" "${trace_id}" "${work_dir}"/work &
 wait
 
-if [ `ls -l ${work_dir}/work | wc -l` -lt 2 ]; then
+if [ $(ls -l "${work_dir}/work" | wc -l) -lt 2 ]; then
 	echo "Export failure!"
 	exit 1
 fi
@@ -88,10 +89,10 @@ fi
 # compress files(only compress work data, no config)
 echo "Compressing exported directory: ${work_dir}"
 CURRENT_DIR="$(cd "$(dirname $0)"; pwd)"
-cd ${work_dir}
+cd "${work_dir}"
 tar zcvf "${trace_id}.tar.gz" "./work"
 mv "${trace_id}.tar.gz" "../"
-cd $CURRENT_DIR
+cd "$CURRENT_DIR"
 
 # clear work files
 rm -rf "${work_dir}"
